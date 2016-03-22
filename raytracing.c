@@ -452,11 +452,12 @@ static unsigned int ray_color(const point3 e, double t,
     return 1;
 }
 
+
 /* @param background_color this is not ambient light */
 void raytracing(uint8_t *pixels, color background_color,
                 rectangular_node rectangulars, sphere_node spheres,
                 light_node lights, const viewpoint *view,
-                int width, int height)
+                int width, int height,int begin_width,int begin_height,int end_width,int end_height)
 {
     point3 u, v, w, d;
     color object_color = { 0.0, 0.0, 0.0 };
@@ -465,12 +466,50 @@ void raytracing(uint8_t *pixels, color background_color,
     calculateBasisVectors(u, v, w, view);
 
     idx_stack stk;
-
     int factor = sqrt(SAMPLES);
-    for (int j = 0; j < height; j++) {
-        for (int i = 0; i < width; i++) {
+
+    for (int j = begin_height; j < end_height; j++) {
+        for (int i = begin_width ; i < end_width; i++) {
             double r = 0, g = 0, b = 0;
             /* MSAA */
+
+            for (int s = 0; s < SAMPLES; s++) {
+                idx_stack_init(&stk);
+
+                rayConstruction(d, u, v, w,
+                                i * factor + s / factor,
+                                j * factor + s % factor,
+                                view,
+                                width * factor, height * factor);
+
+                if (ray_color(view->vrp, 0.0, d, &stk, rectangulars, spheres,
+                              lights, object_color,
+                              MAX_REFLECTION_BOUNCES)) {
+                    r += object_color[0];
+                    g += object_color[1];
+                    b += object_color[2];
+                } else {
+                    r += background_color[0];
+                    g += background_color[1];
+                    b += background_color[2];
+                }
+
+                pixels[((i + (j * width)) * 3) + 0] = r * 255 / SAMPLES;
+                pixels[((i + (j * width)) * 3) + 1] = g * 255 / SAMPLES;
+                pixels[((i + (j * width)) * 3) + 2] = b * 255 / SAMPLES;
+
+            }
+        }
+    }
+
+}
+/*
+void thread_function(void *ptr){
+      color object_color = { 0.0, 0.0, 0.0 };
+        for (int j = ptr->j; j < height; j++) {
+        for (int i = 0; i < width; i++) {
+            double r = 0, g = 0, b = 0;
+             MSAA
             for (int s = 0; s < SAMPLES; s++) {
                 idx_stack_init(&stk);
                 rayConstruction(d, u, v, w,
@@ -495,4 +534,5 @@ void raytracing(uint8_t *pixels, color background_color,
             }
         }
     }
-}
+
+}*/
